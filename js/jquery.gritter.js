@@ -23,7 +23,8 @@
         position: '',
 		fade_in_speed: 'medium', // how fast notifications fade in
 		fade_out_speed: 1000, // how fast the notices fade out
-		time: 6000 // hang on the screen for...
+		time: 6000, // hang on the screen for...
+		max_growls: 6 //the maximum number of growls that can be on a page at once
 	}
 	
 	/**
@@ -72,6 +73,7 @@
 		fade_in_speed: '',
 		fade_out_speed: '',
 		time: '',
+		max_growls: 6,
 	    
 		// Private - no touchy the private parts
 		_custom_timer: 0,
@@ -80,6 +82,7 @@
 		_tpl_close: '<div class="gritter-close"></div>',
 		_tpl_item: '<div id="gritter-item-[[number]]" class="gritter-item-wrapper [[item_class]]" style="display:none"><div class="gritter-top"></div><div class="gritter-item">[[close]][[image]]<div class="[[class_name]]"><span class="gritter-title">[[username]]</span><p>[[text]]</p></div><div style="clear:both"></div></div><div class="gritter-bottom"></div></div>',
 		_tpl_wrap: '<div id="gritter-notice-wrapper"></div>',
+		_showing: [],
 	    
 		/**
 		* Add a gritter notification to the screen
@@ -112,6 +115,9 @@
 			this._item_count++;
 			var number = this._item_count, 
 				tmp = this._tpl_item;
+			
+			// Keep track of the item
+			this._showing.push(number);
 			
 			// Assign callbacks
 			$(['before_open', 'after_open', 'before_close', 'after_close']).each(function(i, val){
@@ -163,6 +169,16 @@
 				Gritter._hoverState($(this), event.type);
 			});
 			
+			// Get rid of any growls that exceed our max
+			if (this._showing.length > this.max_growls) {
+				var i,
+					remove_num = this._showing.length - this.max_growls;
+				
+				for (i = 0; i < remove_num; i++) {
+					this.removeSpecific(this._showing[i]);
+				}
+			}
+			
 			return number;
 	    
 		},
@@ -181,7 +197,7 @@
 			this['_after_close_' + unique_id](e, manual_close);
 			
 			// Check if the wrapper is empty, if it is.. remove the wrapper
-			if($('.gritter-item-wrapper').length == 0){
+			if(this._showing.length == 0){
 				$('#gritter-notice-wrapper').remove();
 			}
 		
@@ -197,7 +213,8 @@
 		*/
 		_fade: function(e, unique_id, params, unbind_events){
 
-			var params = params || {},
+			var i,
+				params = params || {},
 				fade = (typeof(params.fade) != 'undefined') ? params.fade : true;
 				fade_out_speed = params.speed || this.fade_out_speed,
                 manual_close = unbind_events;
@@ -226,7 +243,15 @@
 				this._countRemoveWrapper(unique_id, e);
 				
 			}
-					    
+			
+			// And remove it from our list of showing growls
+			for (i = 0; i < this._showing.length; i++) {
+				if (this._showing[i] == unique_id) {
+					this._showing.splice(i, 1);
+					break;
+				}
+			}
+			
 		},
 		
 		/**
@@ -303,7 +328,8 @@
 		* @private
 		*/
 		_runSetup: function(){
-		
+			
+			var opt;
 			for(opt in $.gritter.options){
 				this[opt] = $.gritter.options[opt];
 			}
